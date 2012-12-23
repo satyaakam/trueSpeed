@@ -52,8 +52,36 @@
     2. info ==> This shows status of server on mouseover
     3. result ==> This shows the cumulative result
      
+### Javascript details     
      
-     
- 
+  The list of servers is provided in server_list. 
+
+  For any server not hosted on the same  machine, CORS setup will be required.
+
+
+  On page load, the XMLHttpRequests for all the servers are created, and 
+  initial connection made to all the servers. Then the markers on the map
+  are updated to be either checkmark or cross indicating whether the 
+  server is available for testing or not.
+
+  After this initial hand shake, the 'Run' button is enabled.
+  If this button is pressed earlier, the state machine can get garbled.
+
+  There is one state machine for each server. The states are:
+  * created    <= a new machine
+  * connecting <= the XHR is trying to contact server onpage load
+  * notfound   <= the server was not found
+  * denied     <= CORS setup was not done on server
+  * ready      <= ready to start testing
+  * downloading<= downloading in progress
+  * uploading  <= uploading in progress
+  * fnished    <= finished
+
+  
+#### Names of Div's
+
+  * 'map' => the map are for mapstraction
+  * 'info' => display information about server under cursor
+  * 'result' => result display
 
 
