@@ -19,9 +19,9 @@
 	  width:400px ;
       };
     </style>
-    <!-- <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <script src="http://openlayers.org/api/OpenLayers.js"></script>
-    <script src="https://raw.github.com/mapstraction/mxn/master/source/mxn.js?(openlayers)" type="text/javascript"></script>        --!>
+    <script src="https://raw.github.com/mapstraction/mxn/master/source/mxn.js?(openlayers)" type="text/javascript"></script>
     <script type="text/javascript" >
       /* all the data about all the servers.
        * TODO: make it possible to get is from server at run time 
@@ -71,7 +71,7 @@
 
 	  me.have = function (  ev, data ) {
 	      var fn = "got_" + ev + "_at_" + state;
-	      if ( hasOwnProperty(fn) ) {
+	      if ( this.hasOwnProperty(fn) ) {
 		  me[fn](data);
 	      }
 	  }
@@ -102,20 +102,16 @@
       var create_map  = function () {
 	  map = new mxn.Mapstraction('map', 'openlayers');
 	  // Get the full world in view
-	  // -80,+180 --> +50, -180
 	  map.centerAndZoomOnPoints( [ new mxn.LatLonPoint(70,-170),
 				       new mxn.LatLonPoint(-45,170) ] );
       };
       var info;
       var update_info = function () {
-	  info.innerHTML = "Info";
+	  info.innerHTML = "Loading ...";
       };
       var result;
       var update_result = function() {
-	  result.innerHTML = "Result";
-      }
-      var do_server_timeout = function ( id ) {
-	  info.innerHTML += "<p> " + server_list[id]["url_dl"];
+	  result.innerHTML = "Loading ...";
       }
       var initiate_server_check = function  () {
 	  for ( var server in server_list ) {
@@ -130,7 +126,7 @@
       var onload = function() {
 	  info = document.getElementById("info");
 	  result = document.getElementById("result");
-	  //create_map();
+	  create_map();
 	  update_info();
 	  update_result();
 	  initiate_server_check();
