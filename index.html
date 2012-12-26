@@ -19,111 +19,181 @@
 	  width:400px ;
       };
     </style>
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
+    <!-- 
     <script src="http://openlayers.org/api/OpenLayers.js"></script>
     <script src="https://raw.github.com/mapstraction/mxn/master/source/mxn.js?(openlayers)" type="text/javascript"></script>
+    -->
+    <script src="http://js.local/OpenLayers/OpenLayers.js"></script>
+    <script src="http://js.local/mxn/mxn.js?(openlayers)" type="text/javascript"></script> 
+    
     <script type="text/javascript" >
       /* all the data about all the servers.
-       * TODO: make it possible to get is from server at run time 
+       * TODO: make it possible to get this from server at run time 
        * 
        */
       var server_list = {};
-      server_list["hyderabad"] = {
-	  id : "hyderabad",
-	  type : "server",
-	  name : "XYZ Networks Inc.",
-	  ip_addr : "112.122.242.21",
-	  url_dl : "http://a.download",
-	  url_ul : "http://a.b.c/upload",
-	  latitide : 123.03,
-	  longitude : -12.35,
-	  sponsor : "FSF",
-	  sponsor_link : "http://www.fsf.org",
-	  sponsor_icon : "http://foo.bar/favicon.pn",
-	  max_dl : "100 Mbps",
-	  max_ul : "16 Kbps",
-	  status : "untested",
-	  begin : null,
-	  finish : null,
-	  speed : null };
-      server_list["hyd2"] = {
-	  id : "hyderabad",
-	  type : "server",
-	  name : "XYZ Networks Inc.",
-	  ip_addr : "112.122.242.21",
-	  url_dl : "http://a.b.ssc/download",
-	  url_ul : "http://a.b.c/upload",
-	  sponsor : "FSF",
-	  latitide : 123.03,
-	  longitude : -12.35,
-	  sponsor_link : "http://www.fsf.org",
-	  max_dl : "100 Mbps",
-	  max_ul : "16 Kbps",
-	  status : "untested",
-	  begin : null,
-	  finish : null,
-	  speed : null};	      
+      server_list["d0"] = { id : "d0.net"
+			    , type : "server"
+			    , name : "d0.net : original trueSpeed server"
+			    , ip_addr : "d0.net"
+			    , url_dl : "http://d0.net/test_data/5MB.zip"
+			    , url_ul : "http://d0.net/test_data/dev_null"
+			    , latitude : 123.03
+			    , longitude : -12.35
+			    , sponsor : "D0.net Testing"
+			    , sponsor_link : "http://www.gnu.org"
+			    , sponsor_icon : "http://foo.bar/favicon.png"
+			    , max_dl : "100 Mbps"
+			    , max_ul : "16 Kbps"
+			  };
       
-      var StateMachine = function ( server_id ) {
-	  var me = {};
-	  var state = "created";
-	  var id = server_id;
+      server_list["d1"] = { id : "d1.net"
+			    , type : "server"
+			    , name : "d1.net : D1 "
+			    , ip_addr : "s1.d1.net"
+			    , url_dl : "http://s1.d1.net/5MB.zip"
+			    , url_ul : "http://s1.d2.net/test_data/dev_null"
+			    , latitude : 23.03
+			    , longitude : 47.35
+			    , sponsor : "D1.net "
+			    , sponsor_link : "http://www.fsf.org"
+			    , sponsor_icon : "http://foo.bar/favicon.png"
+			    , max_dl : "100 Mbps"
+			    , max_ul : "16 Kbps"
+			  };
 
-	  me.have = function (  ev, data ) {
+      server_list["d2"] = { id : "d2.net"
+			    , type : "server"
+			    , name : "d2.net : D2 "
+			    , ip_addr : "s1.d2.net"
+			    , url_dl : "http://s1.d2.net/5MB.zip"
+			    , url_ul : "http://s1.d2.net/test_data/dev_null"
+			    , latitude : -23.03
+			    , longitude : 56.35
+			    , sponsor : "D2.net "
+			    , sponsor_link : "http://www.fsf.org"
+			    , sponsor_icon : "http://foo.bar/favicon.png"
+			    , max_dl : "100 Mbps"
+			    , max_ul : "16 Kbps"
+			  };
+      
+      var 
+      // The mapstraction map
+      map
+      // The marker ofclient on the map
+      , client_marker
+      // the latlong poing of cliet
+      , client_point
+      // the div for selected server information
+      , info
+      // the div for result
+      , result
+      
+      //the state machine object, created  by iterating over server_list
+      , StateMachine = function ( server_id ) {
+	  
+	  var 
+	  // me is this of this (-:
+	  me = {},
+	  // key of server_list hash
+	  id = server_id,
+	  // value of server_list hash for id
+	  server = server_list[server_id],
+	  // state .. created/ready/downloading/uploading/done
+	  state = "created",
+	  // XHR object .. freed when done.
+	  xhr   = null,
+	  // latlong point of server
+	  server_point = null,
+	  // marker for this server on the map
+	  server_marker = null
+	  // start
+	  , start = null
+	  ;
+	  
+	  // Async send 
+	  me.send = function ( ev, data ) {
 	      var fn = "got_" + ev + "_at_" + state;
-	      if ( this.hasOwnProperty(fn) ) {
+	      if ( me.hasOwnProperty(fn) ) {
+		  setTimeout( function () { me[fn](data); },0);
+	      }	      
+	  }
+	  // Sync send
+	  me.have = function (  ev, data ) {	      
+	      var fn = "got_" + ev + "_at_" + state;
+	      if ( me.hasOwnProperty(fn) ) {
 		  me[fn](data);
 	      }
 	  }
 	  
-	  me.got_start_at_created = function ( data ) {
-	      
-	  }
+	  me.xhr_changed = function () {
+	      if (xhr.readyState === 4) {
+		  var 
+		  stop = new Date(),
+		  amount = xhr.response.byteLength,
+		  elapsed = stop.getTime() - start.getTime(),
+		  speed =  elapsed > 0 ? ( amount * 1000.0 / elapsed ) : -1 ;
+	      };
+	      return 0;
+	  };	
+	  me.got_start_at_created = function ( data ) {	      
+	      server_point = new mxn.LatLonPoint(server.longitude,server.latitude);
+	      server_marker = new mxn.Marker( server_point);
+	      map.addMarker(server_marker);
+	      //var pts = [ client_point, server.point];
+	      //server.line = new mxn.Polyline( pts);
+	      //map.addPolyline(server.line);
+	      xhr = new XMLHttpRequest();
+	      xhr.open('GET',server.url_dl, true);
+	      start = new Date();
+	      xhr.overrideMimeType('text/plain; charset=x-user-defined');
+	      xhr.responseType = 'arraybuffer';
+	      xhr.onreadystatechange = me.xhr_changed;
+	      xhr.send();	      
+	  };
 	  
-
 	  return me;
-      };
+      }
       
-      var client_marker;
-      var mark_client_location = function (pos) {
-	  var latlon = new mxn.LatLonPoint(pos.coords.latitude, pos.coords.longitude);
-	  var marker = new mxn.Marker(latlon);
-	  client_marker = marker;
-	  map.addMarker(marker);
+      , mark_client_location = function (pos) {
+	  client_point = new mxn.LatLonPoint(pos.coords.latitude, pos.coords.longitude);
+	  client_marker = new mxn.Marker( client_point);
+	  map.addMarker(client_marker);
 	  //map.setCenter(latlon);
 	  //map.autoCenterAndZoom();
       }
-      var initiate_client_check = function() {
+
+      , initiate_client_check = function() {
 	  if (navigator.geolocation) {
 	      navigator.geolocation.getCurrentPosition(mark_client_location);
 	  }
       }
-      var map;
-      var create_map  = function () {
+
+      , create_map  = function () {
 	  map = new mxn.Mapstraction('map', 'openlayers');
 	  // Get the full world in view
 	  map.centerAndZoomOnPoints( [ new mxn.LatLonPoint(70,-170),
 				       new mxn.LatLonPoint(-45,170) ] );
-      };
-      var info;
-      var update_info = function () {
+      }
+      // update the info
+      , update_info = function () {
 	  info.innerHTML = "Loading ...";
-      };
-      var result;
-      var update_result = function() {
+      }
+      // update the result .. this needs improvement
+      , update_result = function() {
 	  result.innerHTML = "Loading ...";
       }
-      var initiate_server_check = function  () {
+      // create statemachines and rev them up
+      , initiate_server_check = function  () {
 	  for ( var server in server_list ) {
 	      var s = new StateMachine(server);
-	      server_list[server]["fsm"] = s;
-	      setTimeout( s.have("start"), 0);
+	      //server_list[server]["fsm"] = s;
+	      s.send("start",0);
 	  }
       }
-      /**
-       ** The starting of the script ...
-       **/
-      var onload = function() {
+
+      // starting place ...
+      , onload = function() {
 	  info = document.getElementById("info");
 	  result = document.getElementById("result");
 	  create_map();
@@ -131,7 +201,9 @@
 	  update_result();
 	  initiate_server_check();
 	  initiate_client_check();
-      };
+      }
+      
+      ;
     </script>
   </head>
   <body onload="onload();">
