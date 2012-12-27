@@ -14,4 +14,8 @@ The index.html should be accesible from d0.net,
 
 
 
+# TODO
+ --> Add a graphing library
+
+
 
