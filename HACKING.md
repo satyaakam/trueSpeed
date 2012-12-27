@@ -20,7 +20,7 @@ The index.html should be accesible from d0.net,
  * Move to a independent javascript
  * Use different icons for servers
  * handles errors from servers
- * 
+ 
 # Farther TODO
  * use WebSockets for accurate measurements
  * 
