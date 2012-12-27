@@ -32,7 +32,8 @@
        * 
        */
       var server_list = {};
-      server_list["d0"] = { id : "d0.net"
+      // For now  ... keep index as integers and 0..n .. will be fixed later
+      server_list[0] = { id : "d0.net"
 			    , type : "server"
 			    , name : "d0.net : original trueSpeed server"
 			    , ip_addr : "d0.net"
@@ -47,7 +48,7 @@
 			    , max_ul : "16 Kbps"
 			  };
       
-      server_list["d1"] = { id : "d1.net"
+      server_list[1] = { id : "d1.net"
 			    , type : "server"
 			    , name : "d1.net : D1 "
 			    , ip_addr : "s1.d1.net"
@@ -62,7 +63,7 @@
 			    , max_ul : "16 Kbps"
 			  };
 
-      server_list["d2"] = { id : "d2.net"
+      server_list[2] = { id : "d2.net"
 			    , type : "server"
 			    , name : "d2.net : D2 "
 			    , ip_addr : "s1.d2.net"
@@ -88,6 +89,83 @@
       , info
       // the div for result
       , result
+      // Captures the result for all the servers
+      // The bandwidth used by each server every granularity..
+      , ResultCapture = function ( ) {
+	  var
+	  // me is this
+	  me = {}
+	  // granularity in ms
+	  , granularity = 1
+	  // A hack here  .. Assuming index are integers .. see server_list creation
+	  , lists = []
+	  , start = null
+	  , last  = null
+	  ;
+	  
+	  // arr[from] to arr[to] are set t o val,
+	  // grown as needed, filled with zero as needed
+	  me.fill = function ( arr, from, to, val) {
+	      me.upd( arr, from, 0);
+	      me.upd( arr, to,val);	      
+	  }
+	  me.upd = function( arr, to, val) {
+	      while ( arr.length < to ) 
+		  arr.push(val);
+	      
+	  }
+	  me.begin = function( id, tnow) {
+	      lists[id] = [];
+	      if ( start == null ) { start = tnow; }
+	      last = tnow;
+	  }
+	  me.update = function( id, tnow, snow, tprev, sprev ) {
+	      var  idx1 = ( tprev - start ) / granularity;
+	      var  idx2 = ( tnow  - start ) / granularity;
+	      var  val = ( snow - sprev ) / ( tnow - tprev );
+	      me.fill( lists[id], idx1, idx2, val);
+	      //console.log(" For: %s : %s -- %s -- %s:%s : %s\n",
+	      //id, lists[id].length, idx1, idx2, snow, sprev);
+	      last = tnow;
+	  }
+	  me.finish = function( id) {
+	      
+	  }
+	  
+	  
+	  me.update_result = function () {
+	      if ( start ) {
+		  var str = "";
+		  var count = lists.length;
+		  var idx1 = ( last - start ) / granularity;
+		  var total = [];
+		  for( var i = 0 ; i < idx1 ; ++i ) {
+		      var total = 0;
+		      for ( var j = 0 ; j < count ; j ++ ) 
+			  if ( lists[j].length > i )
+			      total += lists[j][i];
+		      if ( total < 1000 ) {
+			  total = total.toFixed(0) + " Bps";
+		      } else if ( total < 1000000 ) {
+			  total = total / 1000;
+			  total = total.toFixed(0) + " KBps";
+		      } else {
+			  total = total / 1000000;
+			  total = total.toFixed(0) + " MBps";
+		      }
+		      //str += " , " + total;
+		      str = total;
+		  }
+		  result.innerHTML = str;	  
+	      }
+	  }
+	  
+	  window.setInterval( me.update_result, 100);
+	  
+	  return me;
+      }
+      // And the Object ...
+      , result_capture = new ResultCapture()
       
       //the state machine object, created  by iterating over server_list
       , StateMachine = function ( server_id ) {
@@ -107,8 +185,9 @@
 	  server_point = null,
 	  // marker for this server on the map
 	  server_marker = null
-	  // start
-	  , start = null
+	  // to update results ... 
+	  , tprev, sprev 
+
 	  ;
 	  
 	  // Async send 
@@ -127,15 +206,32 @@
 	  }
 	  
 	  me.xhr_changed = function () {
-	      if (xhr.readyState === 4) {
-		  var 
-		  stop = new Date(),
-		  amount = xhr.response.byteLength,
-		  elapsed = stop.getTime() - start.getTime(),
-		  speed =  elapsed > 0 ? ( amount * 1000.0 / elapsed ) : -1 ;
-	      };
-	      return 0;
-	  };	
+	      var tnow = new Date();
+	      tnow = tnow.getTime();
+	      var snow = 0;
+	      switch ( xhr.readyState ) {
+	      case 0 :
+		  break;
+	      case 1: 
+		  result_capture.begin(id,tnow); 
+		  break;		  
+	      case 2: 
+		  result_capture.begin(id,tnow); 
+		  break;
+	      case 3: 
+		  snow = xhr.responseText? xhr.responseText.length : 0;
+		  result_capture.update(id, tnow, snow,tprev, sprev);
+		  break;
+	      case 4: 
+		  snow = xhr.responseText? xhr.responseText.length : 0;
+		  result_capture.update(id, tnow, snow, tprev, sprev);
+		  result_capture.finish(id);
+		  break;
+	      }
+	      tprev = tnow;
+	      sprev = snow;
+	  }
+
 	  me.got_start_at_created = function ( data ) {	      
 	      server_point = new mxn.LatLonPoint(server.longitude,server.latitude);
 	      server_marker = new mxn.Marker( server_point);
@@ -144,13 +240,14 @@
 	      //server.line = new mxn.Polyline( pts);
 	      //map.addPolyline(server.line);
 	      xhr = new XMLHttpRequest();
-	      xhr.open('GET',server.url_dl, true);
-	      start = new Date();
+	      xhr.open('GET',server.url_dl  + "?randomize="+ new Date(), true);
+	      // Adding this causes pre-flight .. hence delayed..
+	      //xhr.setRequestHeader("If-Modified-Since", "Sat, 1 Jan 2005 00:00:00 GMT");
 	      xhr.overrideMimeType('text/plain; charset=x-user-defined');
-	      xhr.responseType = 'arraybuffer';
+	      //xhr.responseType = 'arraybuffer';
 	      xhr.onreadystatechange = me.xhr_changed;
 	      xhr.send();	      
-	  };
+	  }
 	  
 	  return me;
       }
